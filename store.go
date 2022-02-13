@@ -4,12 +4,13 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 )
 
 type store struct {
 	Locations      []location
-	ActiveLocation location
+	ActiveLocation *location
 	FileName       string
 }
 
@@ -17,92 +18,95 @@ func NewStore() store {
 	return store{FileName: "config"}
 }
 
-func (s *store) AddLocation(path string) error {
+func (s *store) AddLocation(path string) (*location, error) {
 	if path == "" {
-		return errors.New("cannot add empty path")
+		return nil, errors.New("cannot add empty path")
 	}
 	location := NewLocation(path)
-	if len(s.Locations) == 0 {
-		s.ActiveLocation = location
+	s.Locations = append(s.Locations, location)
+	if len(s.Locations) == 1 {
+		s.ActiveLocation = &s.Locations[0]
 		fmt.Printf("Active location of store: %s\n", path)
 	}
-	s.Locations = append(s.Locations, location)
-	return nil
+	return &s.Locations[len(s.Locations)-1], nil
 }
 
-func GetStoreDir() (string, error) {
+func GetStoreDir() string {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
-		return "", err
+		log.Fatal(err)
 	}
 	dirname := ".vault"
-	return homedir + "/" + dirname, nil
+	return homedir + "/" + dirname
 }
 
-func (s store) Save() error {
-	configDir, err := GetStoreDir()
-	if err != nil {
-		return err
-	}
-	configDirExists, err := exists(configDir)
-	if err != nil {
-		return err
-	}
-	if !configDirExists {
-		if err := os.Mkdir(configDir, os.ModePerm); err != nil {
-			return err
-		}
-	}
+func (s store) CreateConfig() {
+	configDir := GetStoreDir()
 	filePath := configDir + "/" + s.FileName
 	fmt.Printf("Saving store to %s\n", filePath)
 	dataFile, err := os.Create(filePath)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 	dataEncoder := gob.NewEncoder(dataFile)
 	if err := dataEncoder.Encode(s); err != nil {
-		return err
+		log.Fatal(err)
+		return
 	}
 	dataFile.Close()
-	return nil
 }
 
-func (s *store) Load() error {
-	configDir, err := GetStoreDir()
-	if err != nil {
-		return err
-	}
-	configDirExists, err := exists(configDir)
-	if err != nil {
-		return err
-	}
-	if !configDirExists {
-		if err := s.LoadDefault(); err != nil {
-			return err
+func (s store) Save() {
+	configDir := GetStoreDir()
+	if !exists(configDir) {
+		err := os.Mkdir(configDir, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+			return
 		}
-		return nil
 	}
-	filePath := configDir + "/" + s.FileName
-	fmt.Printf("Loading data file %s\n", filePath)
+	s.CreateConfig()
+}
+
+func (s *store) LoadStoreFile(filePath string) *os.File {
+	fmt.Printf("Loading store file %s\n", filePath)
 	dataFile, err := os.Open(filePath)
 	if err != nil {
-		return err
+		if os.IsNotExist(err) {
+			fmt.Println("Error: store config not found, creating default config")
+			s.CreateConfig()
+			return s.LoadStoreFile(filePath)
+		} else {
+			log.Fatal(err)
+		}
 	}
-	dataDecoder := gob.NewDecoder(dataFile)
-	err = dataDecoder.Decode(&s)
-	dataFile.Close()
-	fmt.Printf("Loaded store from file '%s'\n", filePath)
-	return err
+	return dataFile
 }
-func (s *store) LoadDefault() error {
-	fmt.Println("Inizializing data directory")
-	configDir, err := GetStoreDir()
-	if err != nil {
-		return err
-	}
-	if err := os.Mkdir(configDir, os.ModePerm); err != nil {
-		return err
-	}
-	return nil
 
+func (s *store) Load() {
+	configDir := GetStoreDir()
+	if !exists(configDir) {
+		s.LoadDefault()
+		return
+	}
+	filePath := configDir + "/" + s.FileName
+	dataFile := s.LoadStoreFile(filePath)
+	dataDecoder := gob.NewDecoder(dataFile)
+	if err := dataDecoder.Decode(&s); err != nil {
+		dataFile.Close()
+		log.Fatal(err)
+	}
+	dataFile.Close()
+	for _, location := range s.Locations {
+		location.Load()
+	}
+
+}
+
+func (s *store) LoadDefault() {
+	fmt.Println("Inizializing data directory")
+	configDir := GetStoreDir()
+	if err := os.Mkdir(configDir, os.ModePerm); err != nil {
+		log.Fatal(err)
+	}
 }

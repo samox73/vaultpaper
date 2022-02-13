@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 	"strings"
 )
@@ -17,13 +18,23 @@ func isLegalFile(path string) bool {
 }
 
 // exists returns whether the given file or directory exists
-func exists(path string) (bool, error) {
+func exists(path string) bool {
 	_, err := os.Stat(path)
 	if err == nil {
-		return true, nil
+		return true
 	}
 	if os.IsNotExist(err) {
-		return false, nil
+		return false
 	}
-	return false, err
+	log.Fatal(err)
+	return false
+}
+
+func contains(locations []location, path string) bool {
+	for _, location := range locations {
+		if location.Directory == path {
+			return true
+		}
+	}
+	return false
 }

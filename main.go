@@ -12,12 +12,11 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	ctl := NewVaultctl()
-	if err := ctl.Load(); err != nil {
-		log.Fatal(err)
-	}
+	ctl.Load()
 
 	random := flag.Bool("r", false, "use random picture of currenct location")
 	list := flag.Bool("l", false, "list all locations")
+	verbose := flag.Bool("v", false, "verbose")
 	newLocation := flag.String("a", "", "add a folder as a new location")
 	flag.Parse()
 
@@ -28,10 +27,8 @@ func main() {
 		ctl.AddFolder(*newLocation)
 	}
 	if *list {
-		ctl.ListLocations()
+		ctl.ListLocations(*verbose)
 	}
 
-	if err := ctl.Save(); err != nil {
-		log.Fatal(err)
-	}
+	ctl.Save()
 }

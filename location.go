@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type location struct {
@@ -27,7 +28,7 @@ func (l *location) Scan() {
 	fmt.Printf("Scanning directory %s\n", l.Directory)
 	filepath.WalkDir(l.Directory, func(path string, d fs.DirEntry, err error) error {
 		if !d.IsDir() && isLegalFile(path) {
-			fmt.Printf("Found file %s (%s)\n", path, err)
+			fmt.Printf("Found file %s\n", path)
 			l.Files = append(l.Files, path)
 		}
 		return err
@@ -37,40 +38,44 @@ func (l *location) Scan() {
 func (l location) Print() {
 	fmt.Printf("Directory: %s\n", l.Directory)
 	fmt.Println("Files:")
+	l.PrintFiles(2)
+}
+
+func (l location) PrintFiles(indent int) {
 	for _, file := range l.Files {
-		fmt.Printf("  - %s\n", file)
+		fmt.Printf("%s- %s\n", strings.Repeat(" ", indent), file)
 	}
 }
 
-func (l location) Save(filename string) error {
-	if filename == "" {
-		return errors.New("empty filename")
-	}
-	dataFile, err := os.Create(l.Directory + "/" + filename)
+func (l location) Save() {
+	filepath := l.Directory + "/store.gob"
+	dataFile, err := os.Create(filepath)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 	dataEncoder := gob.NewEncoder(dataFile)
 	err = dataEncoder.Encode(l)
+	if err != nil {
+		log.Fatal(err)
+	}
 	dataFile.Close()
-	fmt.Printf("Saved location to file '%s'\n", filename)
-	return err
+	fmt.Printf("Saved location to file '%s'\n", filepath)
 }
 
-func (l *location) Load(filename string) error {
-	if filename == "" {
-		return errors.New("empty filename")
-	}
-	fmt.Printf("Loading location %s\n", filename)
-	dataFile, err := os.Open(filename)
+func (l *location) Load() {
+	filepath := l.Directory + "/store.gob"
+	fmt.Printf("Loading location %s\n", filepath)
+	dataFile, err := os.Open(filepath)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 	dataDecoder := gob.NewDecoder(dataFile)
 	err = dataDecoder.Decode(&l)
+	if err != nil {
+		dataFile.Close()
+		log.Fatal(err)
+	}
 	dataFile.Close()
-	fmt.Printf("Loaded location from file '%s'\n", filename)
-	return err
 }
 
 func (l location) GetRandomFilePath() (string, error) {
