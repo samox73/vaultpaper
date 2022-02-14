@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -15,6 +16,19 @@ func NewVaultctl() vaultctl {
 	return vaultctl{store: NewStore()}
 }
 
+func (v *vaultctl) UseBackend(backend string) error {
+	fmt.Printf("Setting backend to %s\n", backend)
+	switch backend {
+	case "pywal":
+		v.store.Backend = NewPywalBackend()
+		return nil
+	case "feh":
+		v.store.Backend = NewFehBackend()
+		return nil
+	}
+	return errors.New("Backend '" + backend + "' is not a valid backend")
+}
+
 func (v vaultctl) Random() {
 	if v.store.ActiveLocation == nil {
 		fmt.Println("The store has no active location configured")
@@ -24,7 +38,7 @@ func (v vaultctl) Random() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	SetBackground(randomFile)
+	v.store.Backend.setWallpaper(randomFile)
 }
 
 func (v *vaultctl) AddFolder(path string) {
@@ -37,7 +51,7 @@ func (v *vaultctl) AddFolder(path string) {
 	}
 	if contains(v.store.Locations, path) {
 		fmt.Printf("Store already tracks folder %s\n", path)
-		return 
+		return
 	}
 	fmt.Printf("Adding new folder %s\n", path)
 	newLocation, err := v.store.AddLocation(path)

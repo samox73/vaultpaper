@@ -12,10 +12,13 @@ type store struct {
 	Locations      []location
 	ActiveLocation *location
 	FileName       string
+	Backend        backend
 }
 
 func NewStore() store {
-	return store{FileName: "config"}
+	gob.Register(fehBackend{})
+	gob.Register(pywalBackend{})
+	return store{FileName: "config", Backend: NewPywalBackend()}
 }
 
 func (s *store) AddLocation(path string) (*location, error) {
@@ -29,15 +32,6 @@ func (s *store) AddLocation(path string) (*location, error) {
 		fmt.Printf("Active location of store: %s\n", path)
 	}
 	return &s.Locations[len(s.Locations)-1], nil
-}
-
-func GetStoreDir() string {
-	homedir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal(err)
-	}
-	dirname := ".vault"
-	return homedir + "/" + dirname
 }
 
 func (s store) CreateConfig() {
@@ -56,18 +50,6 @@ func (s store) CreateConfig() {
 	dataFile.Close()
 }
 
-func (s store) Save() {
-	configDir := GetStoreDir()
-	if !exists(configDir) {
-		err := os.Mkdir(configDir, os.ModePerm)
-		if err != nil {
-			log.Fatal(err)
-			return
-		}
-	}
-	s.CreateConfig()
-}
-
 func (s *store) LoadStoreFile(filePath string) *os.File {
 	fmt.Printf("Loading store file %s\n", filePath)
 	dataFile, err := os.Open(filePath)
@@ -81,6 +63,18 @@ func (s *store) LoadStoreFile(filePath string) *os.File {
 		}
 	}
 	return dataFile
+}
+
+func (s store) Save() {
+	configDir := GetStoreDir()
+	if !exists(configDir) {
+		err := os.Mkdir(configDir, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+	}
+	s.CreateConfig()
 }
 
 func (s *store) Load() {

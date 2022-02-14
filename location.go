@@ -13,22 +13,23 @@ import (
 )
 
 type location struct {
-	Directory string
-	Files     []string
+	Directory    string
+	Files        []string
+	CurrentIndex int
 }
 
 func NewLocation(directory string) location {
 	if err := os.MkdirAll(directory, os.ModePerm); err != nil {
 		log.Fatal(err)
 	}
-	return location{Directory: directory}
+	return location{Directory: directory, CurrentIndex: -1}
 }
 
 func (l *location) Scan() {
 	fmt.Printf("Scanning directory %s\n", l.Directory)
 	filepath.WalkDir(l.Directory, func(path string, d fs.DirEntry, err error) error {
 		if !d.IsDir() && isLegalFile(path) {
-			fmt.Printf("Found file %s\n", path)
+			fmt.Printf("  - %s\n", filepath.Base(path))
 			l.Files = append(l.Files, path)
 		}
 		return err
@@ -43,12 +44,17 @@ func (l location) Print() {
 
 func (l location) PrintFiles(indent int) {
 	for _, file := range l.Files {
-		fmt.Printf("%s- %s\n", strings.Repeat(" ", indent), file)
+		basename := filepath.Base(file)
+		fmt.Printf("%s- %s\n", strings.Repeat(" ", indent), basename)
 	}
 }
 
+func (l location) getConfigPath() string {
+	return l.Directory + "/.vaultlocation"
+}
+
 func (l location) Save() {
-	filepath := l.Directory + "/store.gob"
+	filepath := l.getConfigPath()
 	dataFile, err := os.Create(filepath)
 	if err != nil {
 		log.Fatal(err)
@@ -63,7 +69,7 @@ func (l location) Save() {
 }
 
 func (l *location) Load() {
-	filepath := l.Directory + "/store.gob"
+	filepath := l.getConfigPath()
 	fmt.Printf("Loading location %s\n", filepath)
 	dataFile, err := os.Open(filepath)
 	if err != nil {

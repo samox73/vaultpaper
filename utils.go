@@ -38,3 +38,12 @@ func contains(locations []location, path string) bool {
 	}
 	return false
 }
+
+func GetStoreDir() string {
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	dirname := ".vault"
+	return homedir + "/" + dirname
+}
