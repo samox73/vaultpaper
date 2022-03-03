@@ -73,7 +73,13 @@ func (l *location) Load() {
 	fmt.Printf("Loading location %s\n", filepath)
 	dataFile, err := os.Open(filepath)
 	if err != nil {
-		log.Fatal(err)
+		if os.IsNotExist(err) {
+			l.Save()
+			l.Load()
+			return
+		} else {
+			log.Fatal(err)
+		}
 	}
 	dataDecoder := gob.NewDecoder(dataFile)
 	err = dataDecoder.Decode(&l)
