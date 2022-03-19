@@ -2,36 +2,65 @@ package main
 
 import (
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 )
 
 type store struct {
-	Locations      []location
-	ActiveLocation *location
-	FileName       string
-	Backend        backend
+	RedditLocations []redditLocation
+	LocalLocations  []localLocation
+	ActiveLocation  location
+	FileName        string
+	Backend         backend
 }
 
 func NewStore() store {
 	gob.Register(fehBackend{})
 	gob.Register(pywalBackend{})
+	gob.Register(redditLocation{})
+	gob.Register(localLocation{})
 	return store{FileName: "config", Backend: NewPywalBackend()}
 }
 
-func (s *store) AddLocation(path string) (*location, error) {
-	if path == "" {
-		return nil, errors.New("cannot add empty path")
+func (s *store) AddLocation(uri string) error {
+	if strings.HasPrefix(uri, "r/") {
+		return s.AddRedditLocation(uri)
+	} else {
+		return s.AddLocalLocation(uri)
 	}
-	location := NewLocation(path)
-	s.Locations = append(s.Locations, location)
-	if len(s.Locations) == 1 {
-		s.ActiveLocation = &s.Locations[0]
-		fmt.Printf("Active location of store: %s\n", path)
+}
+
+func (s *store) AddRedditLocation(sub string) error {
+	fmt.Printf("Adding subreddit '%s'", sub)
+	if subredditIsPresent(s.RedditLocations, sub) {
+		return &LocationPresentError{sub}
 	}
-	return &s.Locations[len(s.Locations)-1], nil
+	s.RedditLocations = append(s.RedditLocations, NewRedditLocation(sub))
+	if s.ActiveLocation == nil {
+		s.ActiveLocation = &s.RedditLocations[0]
+		fmt.Printf("Active location of store is now '%s'\n", sub)
+	}
+	return nil
+}
+
+func (s *store) AddLocalLocation(path string) error {
+	path = mapAbsPath(path)
+	if localLocationIsPresent(s.LocalLocations, path) {
+		return &LocationPresentError{path}
+	}
+	fmt.Printf("Adding local location '%s'\n", path)
+	location := NewLocalLocation(path)
+	s.LocalLocations = append(s.LocalLocations, location)
+	if s.ActiveLocation == nil {
+		s.ActiveLocation = &s.LocalLocations[0]
+		fmt.Printf("Active location of store is now '%s'\n", path)
+	}
+	newLocation := &s.LocalLocations[len(s.LocalLocations)-1]
+	newLocation.Scan()
+	newLocation.Save()
+	return nil
 }
 
 func (s store) CreateConfig() {
@@ -91,7 +120,7 @@ func (s *store) Load() {
 		log.Fatal(err)
 	}
 	dataFile.Close()
-	for _, location := range s.Locations {
+	for _, location := range s.LocalLocations {
 		location.Load()
 	}
 
@@ -103,4 +132,12 @@ func (s *store) LoadDefault() {
 	if err := os.Mkdir(configDir, os.ModePerm); err != nil {
 		log.Fatal(err)
 	}
+}
+
+type LocationPresentError struct {
+	uri string
+}
+
+func (e *LocationPresentError) Error() string {
+	return fmt.Sprintf("Location '%s' is already present", e.uri)
 }

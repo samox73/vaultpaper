@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -30,7 +31,16 @@ func exists(path string) bool {
 	return false
 }
 
-func contains(locations []location, path string) bool {
+func subredditIsPresent(locations []redditLocation, path string) bool {
+	for _, location := range locations {
+		if location.Subreddit == path {
+			return true
+		}
+	}
+	return false
+}
+
+func localLocationIsPresent(locations []localLocation, path string) bool {
 	for _, location := range locations {
 		if location.Directory == path {
 			return true
@@ -46,4 +56,15 @@ func GetStoreDir() string {
 	}
 	dirname := ".vault"
 	return homedir + "/" + dirname
+}
+
+func mapAbsPath(path string) string {
+	var err error
+	if !filepath.IsAbs(path) {
+		path, err = filepath.Abs(path)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	return path
 }

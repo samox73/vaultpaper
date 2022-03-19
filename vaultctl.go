@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 )
 
 type vaultctl struct {
@@ -21,12 +20,12 @@ func (v *vaultctl) UseBackend(backend string) error {
 	switch backend {
 	case "pywal":
 		v.store.Backend = NewPywalBackend()
-		return nil
 	case "feh":
 		v.store.Backend = NewFehBackend()
-		return nil
+	default:
+		return errors.New("Backend '" + backend + "' is not a valid backend")
 	}
-	return errors.New("Backend '" + backend + "' is not a valid backend")
+	return nil
 }
 
 func (v vaultctl) Random() {
@@ -41,25 +40,13 @@ func (v vaultctl) Random() {
 	v.store.Backend.setWallpaper(randomFile)
 }
 
-func (v *vaultctl) AddFolder(path string) {
-	var err error
-	if !filepath.IsAbs(path) {
-		path, err = filepath.Abs(path)
-		if err != nil {
-			log.Fatal(err)
-		}
+func (v *vaultctl) AddLocation(uri string) {
+	if uri == "" {
+		log.Fatal(errors.New("cannot add empty path"))
 	}
-	if contains(v.store.Locations, path) {
-		fmt.Printf("Store already tracks folder %s\n", path)
-		return
-	}
-	fmt.Printf("Adding new folder %s\n", path)
-	newLocation, err := v.store.AddLocation(path)
-	if err != nil {
+	if err := v.store.AddLocation(uri); err != nil {
 		log.Fatal(err)
 	}
-	newLocation.Scan()
-	newLocation.Save()
 }
 
 func (v *vaultctl) Load() {
@@ -72,7 +59,7 @@ func (v *vaultctl) Save() {
 
 func (v vaultctl) ListLocations(verbose bool) {
 	fmt.Println("Current configured locations:")
-	for _, location := range v.store.Locations {
+	for _, location := range v.store.LocalLocations {
 		fmt.Printf("  *) %s\n", location.Directory)
 		location.PrintFiles(4)
 	}

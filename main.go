@@ -21,10 +21,12 @@ func main() {
 	useBackend := flag.String("b", "", "use a specific backend, possible values include:\n  - pywal\n  - feh")
 	flag.Parse()
 
+	ctl.store.AddLocation("r/itookapicture")
+
 	if *random {
 		ctl.Random()
 	} else if *newLocation != "" {
-		ctl.AddFolder(*newLocation)
+		ctl.AddLocation(*newLocation)
 	} else if *list {
 		ctl.ListLocations(*verbose)
 	} else if *useBackend != "" {
