@@ -19,8 +19,8 @@ type store struct {
 func NewStore() store {
 	gob.Register(fehBackend{})
 	gob.Register(pywalBackend{})
-	gob.Register(redditLocation{})
-	gob.Register(localLocation{})
+	gob.Register(&redditLocation{})
+	gob.Register(&localLocation{})
 	return store{FileName: "config", Backend: NewPywalBackend()}
 }
 
