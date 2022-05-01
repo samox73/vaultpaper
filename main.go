@@ -1,37 +1,11 @@
+/*
+Copyright © 2022 NAME HERE <EMAIL ADDRESS>
+
+*/
 package main
 
-import (
-	"flag"
-	"log"
-	"math/rand"
-	"time"
-)
+import "vaultpaper/cmd"
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	rand.Seed(time.Now().UnixNano())
-
-	ctl := NewVaultctl()
-	ctl.Load()
-
-	random := flag.Bool("r", false, "use random picture of currenct location")
-	list := flag.Bool("l", false, "list all locations")
-	verbose := flag.Bool("v", false, "verbose")
-	newLocation := flag.String("a", "", "add a folder as a new location")
-	useBackend := flag.String("b", "", "use a specific backend, possible values include:\n  - pywal\n  - feh")
-	flag.Parse()
-
-	ctl.store.AddLocation("r/itookapicture")
-
-	if *random {
-		ctl.Random()
-	} else if *newLocation != "" {
-		ctl.AddLocation(*newLocation)
-	} else if *list {
-		ctl.ListLocations(*verbose)
-	} else if *useBackend != "" {
-		ctl.UseBackend(*useBackend)
-	}
-
-	ctl.Save()
+	cmd.Execute()
 }
